@@ -6,7 +6,6 @@
 
 namespace Drupal\required_by_role\Plugin\Required;
 
-use Drupal\Core\Annotation\Translation;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\required_api\Annotation\Required;
@@ -16,6 +15,7 @@ use Drupal\required_api\Plugin\Required\RequiredBase;
  *
  * @Required(
  *   id = "required_by_role",
+ *   admin_label = @Translation("Required by role"),
  *   label = @Translation("Required by role"),
  *   description = @Translation("Required based on current user roles.")
  * )
@@ -28,7 +28,7 @@ class RequiredByRole extends RequiredBase {
    * @param \Drupal\Core\Field\FieldDefinitionInterface $field
    *   An field instance object.
    *
-   * @param \Drupal\user\Entity\User $account
+   * @param \Drupal\Core\Session\AccountInterface $account
    *   An account object.
    *
    * @return bool
@@ -36,7 +36,10 @@ class RequiredByRole extends RequiredBase {
    */
   public function isRequired(FieldDefinitionInterface $field, AccountInterface $account) {
 
-    $is_required = $this->getMatches($account->getRoles(), $field->getSetting('required_plugin_options'));
+    $available_roles = $account->getRoles();
+    $field_roles = $field->getThirdPartySetting('required_api','required_plugin_options', []);
+
+    $is_required = $this->getMatches($available_roles, $field_roles);
     return $is_required;
   }
 
@@ -46,16 +49,13 @@ class RequiredByRole extends RequiredBase {
    * @param array $user_roles
    *   Roles belonging to the user.
    *
-   * @param array $roles
+   * @param array $required_roles
    *   Roles that are required for this field.
    *
    * @return bool
    *   Wether or not the user have a required role.
    */
-  public function getMatches($user_roles, $roles) {
-
-    $required_roles = $roles ? $roles : array();
-    $user_roles = $user_roles ? $user_roles : array();
+  public function getMatches($user_roles, $required_roles) {
 
     $match = array_intersect($user_roles, $required_roles);
 
@@ -74,9 +74,9 @@ class RequiredByRole extends RequiredBase {
   public function requiredFormElement(FieldDefinitionInterface $field) {
 
     $roles = user_roles();
-    $default_value = $field->getSetting('required_plugin_options') ?: array();
+    $default_value = $field->getThirdPartySetting('required_api','required_plugin_options') ?: [];
 
-    unset($roles[DRUPAL_AUTHENTICATED_RID]);
+    unset($roles[AccountInterface::AUTHENTICATED_ROLE]);
 
     $options = array();
 
